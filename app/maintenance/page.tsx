@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
+import { getApiUrl } from "../../lib/api";
 import {
   GUEST_CART_UPDATED_EVENT,
   getCartItems,
@@ -24,7 +25,6 @@ import {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [cartMessage, setCartMessage] = useState("");
   const [cartQuantities, setCartQuantities] = useState<Record<number, number>>({});
  
    const t = dark
@@ -53,7 +53,7 @@ import {
         setLoading(true);
         setError("");
         const token = localStorage.getItem("guest_access_token");
-        const response = await fetch("http://localhost:3000/api/v1/services/2/items", {
+        const response = await fetch(getApiUrl("/api/v1/services/2/items"), {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const data = (await response.json()) as {
@@ -103,8 +103,6 @@ import {
       },
       1,
     );
-    setCartMessage(`${item.item_name} added`);
-    window.setTimeout(() => setCartMessage(""), 1500);
   };
  
    return (
@@ -125,7 +123,6 @@ import {
        <h2 className={`mb-3 font-sans text-[11px] font-bold uppercase ${t.section}`}>
         Available maintenance services
        </h2>
-      {cartMessage ? <p className="mb-3 text-sm text-emerald-500">{cartMessage}</p> : null}
  
        <div className="grid grid-cols-3 gap-3">
         {loading ? <p className={`col-span-3 text-sm ${t.muted}`}>Loading services...</p> : null}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { BottomNav } from "../../components/BottomNav";
 import { GuestScaffold } from "../../components/GuestScaffold";
@@ -14,14 +15,24 @@ import {
 
 export default function CheckoutPage() {
   const { dark } = useGuestTheme();
+  const router = useRouter();
   const [items, setItems] = useState<CartItem[]>([]);
+  const [cartReady, setCartReady] = useState(false);
 
   useEffect(() => {
     const syncCart = () => setItems(getCartItems());
     syncCart();
+    setCartReady(true);
     window.addEventListener(GUEST_CART_UPDATED_EVENT, syncCart);
     return () => window.removeEventListener(GUEST_CART_UPDATED_EVENT, syncCart);
   }, []);
+
+  useEffect(() => {
+    if (!cartReady) return;
+    if (items.length === 0) {
+      router.replace("/");
+    }
+  }, [items, cartReady, router]);
 
   const totals = useMemo(() => {
     const subtotal = items.reduce((sum, item) => sum + item.item_price * item.quantity, 0);
@@ -73,11 +84,7 @@ export default function CheckoutPage() {
         <p className={`mt-1 text-sm ${t.muted}`}>Review your order before confirmation</p>
       </header>
 
-      {items.length === 0 ? (
-        <div className={`rounded-[22px] p-5 text-sm ${t.glass}`}>
-          <p className={t.muted}>Your cart is empty.</p>
-        </div>
-      ) : (
+      {items.length === 0 ? null : (
         <>
           <div className={`overflow-hidden rounded-[22px] ${t.glass}`}>
             {items.map((item, idx) => (

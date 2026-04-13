@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
+import { getApiUrl } from "../../lib/api";
 import {
   GUEST_CART_UPDATED_EVENT,
   getCartItems,
@@ -24,7 +25,6 @@ import {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [cartMessage, setCartMessage] = useState("");
   const [cartQuantities, setCartQuantities] = useState<Record<number, number>>({});
 
   useEffect(() => {
@@ -33,7 +33,7 @@ import {
         setLoading(true);
         setError("");
         const token = localStorage.getItem("guest_access_token");
-        const response = await fetch("http://localhost:3000/api/v1/services/3/items", {
+        const response = await fetch(getApiUrl("/api/v1/services/3/items"), {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const data = (await response.json()) as {
@@ -101,8 +101,6 @@ import {
       },
       delta,
     );
-    setCartMessage(delta > 0 ? `${item.item_name} added to cart` : `${item.item_name} updated`);
-    window.setTimeout(() => setCartMessage(""), 1500);
   };
  
    return (
@@ -142,7 +140,6 @@ import {
        </h2>
  
        <div className={`overflow-hidden rounded-[22px] ${t.glass}`}>
-        {cartMessage ? <p className="px-4 py-3 text-sm text-emerald-500">{cartMessage}</p> : null}
         {loading ? <p className={`px-4 py-4 text-sm ${t.muted}`}>Loading items...</p> : null}
         {error ? <p className="px-4 py-4 text-sm text-red-500">{error}</p> : null}
         {!loading && !error && items.length === 0 ? (

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { getApiUrl } from "../lib/api";
 
 const STORAGE_KEYS = {
   accessToken: "guest_access_token",
@@ -51,7 +52,7 @@ export function GuestAuthGate({ children }: { children: ReactNode }) {
 
     try {
       const response = await fetch(
-        "http://localhost:3000/api/v1/auth/guest/login",
+        getApiUrl("/api/v1/auth/guest/login"),
         {
           method: "POST",
           headers: {

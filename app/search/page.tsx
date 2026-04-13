@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
+import { getApiUrl } from "../../lib/api";
 import {
   GUEST_CART_UPDATED_EVENT,
   getCartItems,
@@ -33,7 +34,6 @@ type SearchItem = {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [resultsVisible, setResultsVisible] = useState(false);
   const [activeSearchLabel, setActiveSearchLabel] = useState("");
-  const [cartMessage, setCartMessage] = useState("");
   const [cartQuantities, setCartQuantities] = useState<Record<number, number>>({});
 
   useEffect(() => {
@@ -47,7 +47,7 @@ type SearchItem = {
   const fetchItems = async (term: string) => {
     const token = localStorage.getItem("guest_access_token");
     const encodedQuery = encodeURIComponent(term);
-    const response = await fetch(`http://localhost:3000/api/v1/items/search?q=${encodedQuery}`, {
+    const response = await fetch(getApiUrl(`/api/v1/items/search?q=${encodedQuery}`), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
 
@@ -119,8 +119,6 @@ type SearchItem = {
       },
       delta,
     );
-    setCartMessage(delta > 0 ? `${item.item_name} added to cart` : `${item.item_name} updated`);
-    window.setTimeout(() => setCartMessage(""), 1500);
   };
 
   const runSearch = async () => {
@@ -288,40 +286,6 @@ type SearchItem = {
                 <span className={`ml-2 shrink-0 text-xs font-semibold ${t.section}`}>
                   ₹{Number(item.item_price).toFixed(2)}
                 </span>
-                {item.is_available ? (
-                  (cartQuantities[item.item_id] ?? 0) === 0 ? (
-                    <button
-                      type="button"
-                      onMouseDown={() => handleUpdateCart(item, 1)}
-                      className="ml-1 flex h-7 min-w-[48px] shrink-0 items-center justify-center rounded-full bg-gold px-2 text-[11px] font-semibold text-white shadow-md shadow-gold/25"
-                      aria-label={`Add ${item.item_name}`}
-                    >
-                      Add
-                    </button>
-                  ) : (
-                    <div className="ml-1 flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        onMouseDown={() => handleUpdateCart(item, -1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full border border-gold/60 text-sm font-bold text-gold"
-                        aria-label={`Decrease ${item.item_name}`}
-                      >
-                        -
-                      </button>
-                      <span className={`min-w-4 text-center text-xs font-semibold ${t.title}`}>
-                        {cartQuantities[item.item_id] ?? 0}
-                      </span>
-                      <button
-                        type="button"
-                        onMouseDown={() => handleUpdateCart(item, 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-gold text-sm font-bold text-white shadow-md shadow-gold/25 active:scale-95"
-                        aria-label={`Increase ${item.item_name}`}
-                      >
-                        +
-                      </button>
-                    </div>
-                  )
-                ) : null}
               </div>
             ))}
           </div>
@@ -329,7 +293,6 @@ type SearchItem = {
        </div>
 
       {error ? <p className="mb-4 text-sm text-red-500">{error}</p> : null}
-      {cartMessage ? <p className="mb-4 text-sm text-emerald-500">{cartMessage}</p> : null}
 
       {resultsVisible ? (
         <>
