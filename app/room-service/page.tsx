@@ -1,6 +1,7 @@
  "use client";
  
  import Link from "next/link";
+import { useEffect, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
@@ -20,6 +21,46 @@
  
  export default function RoomServicePage() {
    const { dark } = useGuestTheme();
+  const [items, setItems] = useState<
+    {
+      item_id: number;
+      item_name: string;
+      item_price: number;
+      image_url?: string | null;
+      is_available: boolean;
+    }[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchRoomServiceItems = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const token = localStorage.getItem("guest_access_token");
+        const response = await fetch("http://localhost:3000/api/v1/services/3/items", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = (await response.json()) as {
+          items?: typeof items;
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load room-service items.");
+        }
+
+        setItems(data.items ?? []);
+      } catch (fetchError) {
+        setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoomServiceItems();
+  }, []);
  
    const t = dark
      ? {
@@ -53,7 +94,7 @@
          <h1 className={`mt-3 font-serif text-[2rem] leading-tight ${t.title}`}>
            Room Service
          </h1>
-         <p className={`mt-1 text-sm ${t.muted}`}>Request amenities for Room 412</p>
+        <p className={`mt-1 text-sm ${t.muted}`}>Request amenities from live service items</p>
        </header>
  
        <section className={`relative mb-5 overflow-hidden rounded-[22px] p-4 ${t.banner}`}>
@@ -73,45 +114,19 @@
          </div>
        </section>
  
-       <h2 className={`mb-3 font-sans text-[11px] font-bold uppercase ${t.section}`}>
-         Quick request
-       </h2>
- 
-       <div className="grid grid-cols-2 gap-3">
-         {[
-           { icon: "🏖️", name: "Extra Towels", sub: "Complimentary" },
-           { icon: "💧", name: "Mineral Water", sub: "₹120 / bottle" },
-           { icon: "🛏️", name: "Extra Pillow", sub: "Complimentary" },
-           { icon: "🧴", name: "Toiletry Kit", sub: "Complimentary" },
-         ].map((a) => (
-           <Link
-             key={a.name}
-             href="/cart"
-             className={`rounded-[18px] p-4 text-center transition hover:scale-[1.01] active:scale-[0.99] ${t.glass}`}
-           >
-             <div className="text-3xl" aria-hidden>
-               {a.icon}
-             </div>
-             <p className={`mt-2 text-sm font-semibold ${t.title}`}>{a.name}</p>
-             <p className={`mt-0.5 text-[11px] ${t.muted}`}>{a.sub}</p>
-           </Link>
-         ))}
-       </div>
- 
        <h2 className={`mb-3 mt-6 font-sans text-[11px] font-bold uppercase ${t.section}`}>
-         All amenities
+        All amenities
        </h2>
  
        <div className={`overflow-hidden rounded-[22px] ${t.glass}`}>
-         {[
-           { icon: "☕", name: "Coffee / Tea Set", sub: "Complimentary refill" },
-           { icon: "🛁", name: "Bathrobe", sub: "Complimentary" },
-           { icon: "🧹", name: "Housekeeping", sub: "Schedule a clean" },
-           { icon: "🧊", name: "Ice Bucket", sub: "Complimentary" },
-           { icon: "👔", name: "Laundry Service", sub: "₹350 per item" },
-         ].map((row, idx, arr) => (
+        {loading ? <p className={`px-4 py-4 text-sm ${t.muted}`}>Loading items...</p> : null}
+        {error ? <p className="px-4 py-4 text-sm text-red-500">{error}</p> : null}
+        {!loading && !error && items.length === 0 ? (
+          <p className={`px-4 py-4 text-sm ${t.muted}`}>No amenities available right now.</p>
+        ) : null}
+        {items.map((row, idx, arr) => (
            <div
-             key={row.name}
+            key={row.item_id}
              className={`flex items-center justify-between gap-3 px-4 py-3.5 ${
                idx < arr.length - 1
                  ? dark
@@ -127,14 +142,25 @@
                  }`}
                  aria-hidden
                >
-                 <span className="text-xl">{row.icon}</span>
+                {row.image_url ? (
+                  <img
+                    src={row.image_url}
+                    alt={row.item_name}
+                    className="h-11 w-11 rounded-2xl object-cover"
+                  />
+                ) : (
+                  <span className="text-xl">🛎️</span>
+                )}
                </div>
                <div className="min-w-0">
-                 <p className={`truncate text-sm font-semibold ${t.title}`}>{row.name}</p>
-                 <p className={`mt-0.5 truncate text-[11px] ${t.muted}`}>{row.sub}</p>
+                <p className={`truncate text-sm font-semibold ${t.title}`}>{row.item_name}</p>
+                <p className={`mt-0.5 truncate text-[11px] ${t.muted}`}>
+                  ₹{Number(row.item_price).toFixed(2)} ·{" "}
+                  {row.is_available ? "Available" : "Unavailable"}
+                </p>
                </div>
              </div>
-             <AddButton />
+            {row.is_available ? <AddButton /> : <span className={`text-xs ${t.muted}`}>N/A</span>}
            </div>
          ))}
        </div>

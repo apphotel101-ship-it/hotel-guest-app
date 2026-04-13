@@ -1,89 +1,53 @@
  "use client";
  
  import Link from "next/link";
- import { useState } from "react";
+import { useEffect, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
  
- function Chip({
-   active,
-   children,
-   onClick,
- }: {
-   active: boolean;
-   children: React.ReactNode;
-   onClick: () => void;
- }) {
-   return (
-     <button
-       type="button"
-       onClick={onClick}
-       className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-medium transition ${
-         active
-           ? "border-gold bg-gold text-white"
-           : "border-[rgba(200,169,106,0.28)] bg-[rgba(255,255,255,0.5)] text-brown-muted hover:border-gold/60"
-       }`}
-     >
-       {children}
-     </button>
-   );
- }
- 
- const MENU = [
-   {
-     cat: "mains",
-     name: "Pasta Carbonara",
-     desc: "Creamy egg sauce, pancetta, pecorino romano",
-     price: "₹850",
-     icon: "🍝",
-     tags: ["Chef's pick", "30 min"],
-   },
-   {
-     cat: "mains",
-     name: "Grilled Tenderloin",
-     desc: "8oz beef tenderloin, truffle butter, asparagus",
-     price: "₹2,200",
-     icon: "🥩",
-     tags: ["Premium", "45 min"],
-   },
-   {
-     cat: "starters",
-     name: "Caesar Salad",
-     desc: "Romaine, croutons, parmesan, classic dressing",
-     price: "₹650",
-     icon: "🥗",
-     tags: ["Veg", "15 min"],
-   },
-   {
-     cat: "desserts",
-     name: "Crème Brûlée",
-     desc: "Classic French custard, caramelised sugar crust",
-     price: "₹480",
-     icon: "🍮",
-     tags: ["Dessert", "20 min"],
-   },
-   {
-     cat: "drinks",
-     name: "Fresh Lemonade",
-     desc: "Freshly squeezed, mint, sparkling water",
-     price: "₹280",
-     icon: "🍋",
-     tags: ["Drink", "5 min"],
-   },
-   {
-     cat: "breakfast",
-     name: "Continental Breakfast",
-     desc: "Pancakes, eggs, toast, fruit, OJ",
-     price: "₹950",
-     icon: "🥞",
-     tags: ["Breakfast", "20 min"],
-   },
- ] as const;
+type ServiceItem = {
+  item_id: number;
+  item_name: string;
+  item_price: number;
+  image_url?: string | null;
+  is_available: boolean;
+};
  
  export default function FoodPage() {
    const { dark } = useGuestTheme();
-   const [cat, setCat] = useState<string>("all");
+  const [items, setItems] = useState<ServiceItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchFoodItems = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const token = localStorage.getItem("guest_access_token");
+        const response = await fetch("http://localhost:3000/api/v1/services/1/items", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = (await response.json()) as {
+          items?: ServiceItem[];
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load food items.");
+        }
+
+        setItems(data.items ?? []);
+      } catch (fetchError) {
+        setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFoodItems();
+  }, []);
  
    const t = dark
      ? {
@@ -113,8 +77,6 @@
          pill: "bg-[rgba(74,55,40,0.06)] text-brown-muted border border-brown/15",
        };
  
-   const filtered = cat === "all" ? MENU : MENU.filter((m) => m.cat === cat);
- 
    return (
      <GuestScaffold>
        <div className="mb-4">
@@ -131,32 +93,22 @@
            <h1 className={`mt-1 font-serif text-[2rem] leading-tight ${t.title}`}>
              Food & Dining
            </h1>
-           <p className={`mt-1 text-sm ${t.sub}`}>Today’s specials and classics</p>
-         </div>
- 
-         <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-           {[
-             ["all", "All"],
-             ["starters", "Starters"],
-             ["mains", "Mains"],
-             ["desserts", "Desserts"],
-             ["drinks", "Drinks"],
-             ["breakfast", "Breakfast"],
-           ].map(([id, label]) => (
-             <Chip key={id} active={cat === id} onClick={() => setCat(id)}>
-               {label}
-             </Chip>
-           ))}
+          <p className={`mt-1 text-sm ${t.sub}`}>Live menu from your service API</p>
          </div>
        </div>
  
        <h2 className={`mb-3 font-sans text-[11px] font-bold uppercase ${t.section}`}>
-         Today’s specials
+        Food items
        </h2>
  
        <div className="space-y-3">
-         {filtered.map((item) => (
-           <div key={item.name} className={`rounded-[18px] p-3 ${t.row}`}>
+        {loading ? <p className={`text-sm ${t.rowMuted}`}>Loading food items...</p> : null}
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
+        {!loading && !error && items.length === 0 ? (
+          <p className={`text-sm ${t.rowMuted}`}>No food items available right now.</p>
+        ) : null}
+        {items.map((item) => (
+          <div key={item.item_id} className={`rounded-[18px] p-3 ${t.row}`}>
              <div className="flex gap-3">
                <div
                  className={`flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl ${
@@ -166,25 +118,35 @@
                  }`}
                  aria-hidden
                >
-                 <span className="text-3xl">{item.icon}</span>
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.item_name}
+                    className="h-[72px] w-[72px] rounded-2xl object-cover"
+                  />
+                ) : (
+                  <span className="text-3xl">🍽️</span>
+                )}
                </div>
                <div className="min-w-0 flex-1">
-                 <p className={`text-sm font-semibold ${t.rowText}`}>{item.name}</p>
+                <p className={`text-sm font-semibold ${t.rowText}`}>{item.item_name}</p>
                  <div className="mt-1 flex flex-wrap gap-1.5">
-                   {item.tags.map((tag) => (
-                     <span key={tag} className={`rounded-md px-2 py-0.5 text-[10px] ${t.pill}`}>
-                       {tag}
-                     </span>
-                   ))}
+                  <span className={`rounded-md px-2 py-0.5 text-[10px] ${t.pill}`}>
+                    {item.is_available ? "Available" : "Unavailable"}
+                  </span>
                  </div>
                  <p className={`mt-1 text-[11px] leading-snug ${t.rowMuted}`}>
-                   {item.desc}
+                  Freshly prepared and served to your room.
                  </p>
-                 <p className={`mt-2 text-sm font-bold ${t.price}`}>{item.price}</p>
+                <p className={`mt-2 text-sm font-bold ${t.price}`}>
+                  ₹{Number(item.item_price).toFixed(2)}
+                </p>
                </div>
                <Link
                  href="/cart"
-                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-white shadow-md shadow-gold/25 transition active:scale-95`}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-white shadow-md shadow-gold/25 transition active:scale-95 ${
+                  !item.is_available ? "pointer-events-none opacity-50" : ""
+                }`}
                  aria-label="Add to cart (demo)"
                  title="Add to cart (demo)"
                >

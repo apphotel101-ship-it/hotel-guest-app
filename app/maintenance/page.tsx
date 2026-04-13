@@ -1,16 +1,24 @@
  "use client";
  
  import Link from "next/link";
- import { useState } from "react";
+import { useEffect, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
  
  export default function MaintenancePage() {
    const { dark } = useGuestTheme();
-   const [cat, setCat] = useState<string | null>(null);
-   const [priority, setPriority] = useState<"low" | "med" | "high" | null>(null);
-   const [submitted, setSubmitted] = useState(false);
+  const [items, setItems] = useState<
+    {
+      item_id: number;
+      item_name: string;
+      item_price: number;
+      image_url?: string | null;
+      is_available: boolean;
+    }[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
  
    const t = dark
      ? {
@@ -32,24 +40,34 @@
            "bg-[rgba(255,255,255,0.62)] border-[rgba(74,55,40,0.18)] text-brown placeholder:text-brown-muted/70",
        };
  
-   const categories = [
-     { id: "ac", icon: "❄️", label: "AC / Heating" },
-     { id: "lighting", icon: "💡", label: "Lighting" },
-     { id: "plumbing", icon: "🚰", label: "Plumbing" },
-     { id: "wifi", icon: "📺", label: "TV / WiFi" },
-     { id: "lock", icon: "🔒", label: "Door / Lock" },
-     { id: "window", icon: "🪟", label: "Window" },
-     { id: "bathroom", icon: "🛁", label: "Bathroom" },
-     { id: "electrical", icon: "🔌", label: "Electrical" },
-     { id: "furniture", icon: "🪑", label: "Furniture" },
-   ] as const;
- 
-   const priClass = (p: "low" | "med" | "high") => {
-     if (priority !== p) return "";
-     if (p === "low") return "border-emerald-500/50 bg-emerald-500/15 text-emerald-200";
-     if (p === "med") return "border-amber-500/50 bg-amber-500/15 text-amber-200";
-     return "border-red-500/50 bg-red-500/15 text-red-200";
-   };
+  useEffect(() => {
+    const fetchMaintenanceItems = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const token = localStorage.getItem("guest_access_token");
+        const response = await fetch("http://localhost:3000/api/v1/services/2/items", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = (await response.json()) as {
+          items?: typeof items;
+          message?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to load maintenance items.");
+        }
+
+        setItems(data.items ?? []);
+      } catch (fetchError) {
+        setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMaintenanceItems();
+  }, []);
  
    return (
      <GuestScaffold>
@@ -63,100 +81,32 @@
          <h1 className={`mt-3 font-serif text-[2rem] leading-tight ${t.title}`}>
            Maintenance
          </h1>
-         <p className={`mt-1 text-sm ${t.muted}`}>Report an issue in Room 412</p>
+        <p className={`mt-1 text-sm ${t.muted}`}>Raise maintenance requests from live items</p>
        </header>
  
        <h2 className={`mb-3 font-sans text-[11px] font-bold uppercase ${t.section}`}>
-         Issue category
+        Available maintenance services
        </h2>
  
        <div className="grid grid-cols-3 gap-3">
-         {categories.map((c) => {
-           const selected = cat === c.id;
-           return (
-             <button
-               key={c.id}
-               type="button"
-               onClick={() => setCat(c.id)}
-               className={`rounded-[18px] p-3 text-center transition ${
-                 selected
-                   ? dark
-                     ? "border border-gold/40 bg-[rgba(200,169,106,0.10)]"
-                     : "border border-gold/45 bg-[rgba(200,169,106,0.14)]"
-                   : t.glass
-               }`}
-             >
-               <div className="text-2xl" aria-hidden>
-                 {c.icon}
-               </div>
-               <p className={`mt-2 text-[11px] font-semibold leading-snug ${t.title}`}>
-                 {c.label}
-               </p>
-             </button>
-           );
-         })}
-       </div>
- 
-       <div className="mt-6">
-         <h2 className={`mb-3 font-sans text-[11px] font-bold uppercase ${t.section}`}>
-           Details
-         </h2>
- 
-         <div className={`rounded-[22px] p-4 ${t.glass}`}>
-           <label className={`block text-[11px] font-bold uppercase ${t.section}`}>
-             Describe the issue
-           </label>
-           <textarea
-             className={`mt-2 w-full resize-none rounded-2xl border px-4 py-3 text-sm outline-none transition focus:border-gold/60 ${t.input}`}
-             rows={3}
-             placeholder="Please describe what's wrong..."
-           />
- 
-           <label className={`mt-4 block text-[11px] font-bold uppercase ${t.section}`}>
-             Priority
-           </label>
-           <div className="mt-2 flex gap-2">
-             {([
-               ["low", "Low"],
-               ["med", "Medium"],
-               ["high", "Urgent"],
-             ] as const).map(([p, label]) => (
-               <button
-                 key={p}
-                 type="button"
-                 onClick={() => setPriority(p)}
-                 className={`flex-1 rounded-2xl border px-3 py-2 text-xs font-semibold transition ${
-                   dark
-                     ? "border-[rgba(200,169,106,0.18)] bg-[rgba(16,16,16,0.35)] text-[#d1c4a8]"
-                     : "border-[rgba(74,55,40,0.18)] bg-[rgba(255,255,255,0.55)] text-brown-muted"
-                 } ${priClass(p)}`}
-               >
-                 {label}
-               </button>
-             ))}
-           </div>
- 
-           <label className={`mt-4 block text-[11px] font-bold uppercase ${t.section}`}>
-             Preferred time
-           </label>
-           <input
-             className={`mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none transition focus:border-gold/60 ${t.input}`}
-             placeholder="e.g. After 2 PM, Any time…"
-           />
- 
-           <button
-             type="button"
-             onClick={() => {
-               setSubmitted(true);
-               setTimeout(() => setSubmitted(false), 2500);
-             }}
-             className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-semibold tracking-wide text-white transition active:opacity-90 ${
-               submitted ? "bg-emerald-600" : "bg-gold"
-             }`}
-           >
-             {submitted ? "✓ Request Submitted" : "Submit Request"}
-           </button>
-         </div>
+        {loading ? <p className={`col-span-3 text-sm ${t.muted}`}>Loading services...</p> : null}
+        {error ? <p className="col-span-3 text-sm text-red-500">{error}</p> : null}
+        {!loading && !error && items.length === 0 ? (
+          <p className={`col-span-3 text-sm ${t.muted}`}>No maintenance items available.</p>
+        ) : null}
+        {items.map((item) => (
+          <button key={item.item_id} type="button" className={`rounded-[18px] p-3 text-center ${t.glass}`}>
+            <div className="text-2xl" aria-hidden>
+              🛠️
+            </div>
+            <p className={`mt-2 text-[11px] font-semibold leading-snug ${t.title}`}>
+              {item.item_name}
+            </p>
+            <p className={`mt-1 text-[10px] ${t.muted}`}>
+              ₹{Number(item.item_price).toFixed(2)} · {item.is_available ? "Available" : "Unavailable"}
+            </p>
+          </button>
+        ))}
        </div>
  
        <BottomNav />

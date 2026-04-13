@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useGuestTheme } from "./GuestThemeProvider";
 import { GuestScaffold } from "./GuestScaffold";
 import { BottomNav } from "./BottomNav";
@@ -122,6 +123,28 @@ function StatusPill({
 
 export function GuestDashboard() {
   const { dark } = useGuestTheme();
+  const [guestName, setGuestName] = useState("Guest");
+  const [roomNumber, setRoomNumber] = useState("—");
+
+  useEffect(() => {
+    const guestRaw = localStorage.getItem("guest_profile");
+    if (!guestRaw) return;
+
+    try {
+      const guest = JSON.parse(guestRaw) as {
+        guest_name?: string;
+        room_number?: string;
+      };
+      if (guest.guest_name) {
+        setGuestName(guest.guest_name);
+      }
+      if (guest.room_number) {
+        setRoomNumber(guest.room_number);
+      }
+    } catch {
+      // Ignore malformed local storage and keep UI defaults.
+    }
+  }, []);
 
   const t = dark
     ? {
@@ -225,7 +248,7 @@ export function GuestDashboard() {
           <p className={`mt-4 font-sans text-sm ${t.muted}`}>Welcome back,</p>
           <h1 className="font-serif text-[1.65rem] font-semibold leading-tight sm:text-[1.85rem]">
             <span className={dark ? "text-gold-soft" : "text-brown"}>
-              Mr. Arjun Sharma
+              {guestName}
             </span>
           </h1>
 
@@ -233,7 +256,7 @@ export function GuestDashboard() {
             <span
               className={`rounded-full px-3 py-1 text-xs font-semibold ${t.roomPill}`}
             >
-              Room 412
+              Room {roomNumber}
             </span>
             <span
               className={`h-3 w-px shrink-0 ${dark ? "bg-gold/40" : "bg-brown/30"}`}
