@@ -1,60 +1,18 @@
 "use client";
 
 import Image from "next/image";
-import { type ReactNode, useCallback, useState } from "react";
+import Link from "next/link";
+import { useGuestTheme } from "./GuestThemeProvider";
+import { GuestScaffold } from "./GuestScaffold";
+import { BottomNav } from "./BottomNav";
 
 /** Place design PNGs in `public/images/` using the filenames below. */
 const ASSETS = {
-  bgLight: "/images/bg-light.png",
-  bgDark: "/images/bg-dark.png",
   food: "/images/food.png",
   roomService: "/images/room-service.png",
   maintenance: "/images/maintenance.png",
   complaints: "/images/complaints.png",
-  bell: "/images/bell.png",
 } as const;
-
-function IconHome({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="50"
-      height="50"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M3 10.5 12 3l9 7.5" />
-      <path d="M5 10v10h14V10" />
-    </svg>
-  );
-}
-
-function IconUtensils({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="26"
-      height="26"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M6 3v18" />
-      <path d="M10 3v8c0 2 2 3 2 3s2-1 2-3V3" />
-      <path d="M18 8v13" />
-      <path d="M18 8a3 3 0 1 0 0-6" />
-    </svg>
-  );
-}
 
 function IconWrench({ className }: { className?: string }) {
   return (
@@ -163,8 +121,7 @@ function StatusPill({
 }
 
 export function GuestDashboard() {
-  const [dark, setDark] = useState(false);
-  const toggleTheme = useCallback(() => setDark((d) => !d), []);
+  const { dark } = useGuestTheme();
 
   const t = dark
     ? {
@@ -218,15 +175,8 @@ export function GuestDashboard() {
       };
 
   return (
-    <div
-      className={`relative min-h-dvh transition-all duration-300 ease-in-out ${t.page}`}
-      style={{
-        backgroundImage: `url(${dark ? ASSETS.bgDark : ASSETS.bgLight})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <div className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col px-4 pb-36 pt-3 sm:px-5 sm:pb-40 sm:pt-4 md:max-w-[480px] md:shadow-2xl">
+    <GuestScaffold>
+      <div className={t.page}>
         {/* Status bar (decorative) */}
         <div
           className={`mb-3 flex items-center justify-between text-[13px] font-medium opacity-90 ${dark ? "text-[#e8dcc4]" : "text-brown"}`}
@@ -258,8 +208,8 @@ export function GuestDashboard() {
             >
               The Grand Meridian
             </p>
-            <button
-              type="button"
+            <Link
+              href="/notifications"
               className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-transform duration-300 hover:scale-105 active:scale-95 ${dark ? "bg-[rgba(200,169,106,0.12)] shadow-[0_0_18px_rgba(200,169,106,0.25)]" : "bg-[rgba(200,169,106,0.15)] shadow-[0_0_16px_rgba(200,169,106,0.2)]"}`}
               aria-label="Notifications, 2 unread"
             >
@@ -269,7 +219,7 @@ export function GuestDashboard() {
               <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-sm">
                 2
               </span>
-            </button>
+            </Link>
           </div>
 
           <p className={`mt-4 font-sans text-sm ${t.muted}`}>Welcome back,</p>
@@ -359,6 +309,7 @@ export function GuestDashboard() {
                 alt: "Food and dining",
                 highlight: !dark,
                 badge: null as string | null,
+                href: "/food",
               },
               {
                 title: "Room Service",
@@ -367,6 +318,7 @@ export function GuestDashboard() {
                 alt: "Room service",
                 highlight: false,
                 badge: null,
+                href: "/room-service",
               },
               {
                 title: "Maintenance",
@@ -375,6 +327,7 @@ export function GuestDashboard() {
                 alt: "Maintenance",
                 highlight: false,
                 badge: null,
+                href: "/maintenance",
               },
               {
                 title: "Complaints",
@@ -383,11 +336,12 @@ export function GuestDashboard() {
                 alt: "Complaints",
                 highlight: false,
                 badge: "Feedback",
+                href: "/complaints",
               },
             ].map((card, idx) => (
-              <button
+              <Link
                 key={card.title}
-                type="button"
+                href={card.href}
                 className={`group relative flex flex-col overflow-hidden rounded-[20px] p-3 text-left animate-fade-in-up transition-transform duration-300 ease-out hover:scale-[1.03] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold ${t.glassSoft} ${card.highlight ? t.foodRing : "shadow-[0_0_12px_rgba(200,169,106,0.08)]"}`}
                 style={{ animationDelay: `${140 + idx * 70}ms` }}
               >
@@ -416,7 +370,7 @@ export function GuestDashboard() {
                 <p className={`mt-0.5 font-sans text-[11px] leading-snug ${t.muted}`}>
                   {card.sub}
                 </p>
-              </button>
+              </Link>
             ))}
           </div>
         </section>
@@ -429,12 +383,12 @@ export function GuestDashboard() {
             >
               Active requests
             </h2>
-            <button
-              type="button"
+            <Link
+              href="/requests"
               className={`font-sans text-xs font-medium underline-offset-2 transition hover:underline ${t.muted}`}
             >
               See all
-            </button>
+            </Link>
           </div>
 
           <div
@@ -492,123 +446,7 @@ export function GuestDashboard() {
           </div>
         </section>
       </div>
-
-      {/* Bottom navigation */}
-      <nav
-        className={`fixed bottom-0 left-1/2 z-50 w-full max-w-[420px] -translate-x-1/2 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 transition-all duration-300 ease-in-out md:max-w-[480px]`}
-        aria-label="Primary"
-      >
-        <div
-          className={`flex items-end justify-between gap-1 rounded-[28px] px-2 pb-2 pt-3 backdrop-blur-xl transition-all duration-300 ease-in-out ${t.nav}`}
-        >
-          <NavItem
-            label="Home"
-            active
-            dark={dark}
-            mutedClass={t.navMuted}
-            activeClass={t.navActive}
-            line
-          >
-            <IconHome className="h-[26px] w-[26px] shrink-0" />
-          </NavItem>
-          <NavItem
-            label="Food"
-            active={false}
-            dark={dark}
-            mutedClass={t.navMuted}
-            activeClass={t.navActive}
-          >
-            <IconUtensils className="h-[26px] w-[26px] shrink-0" />
-          </NavItem>
-
-          <div className="relative -mt-9 flex flex-col items-center px-1">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
-              aria-pressed={dark}
-              className={`relative flex h-16 w-16 items-center justify-center rounded-full transition-transform duration-300 ease-in-out hover:scale-[1.04] active:scale-[0.96] sm:h-[68px] sm:w-[68px] ${dark ? "bg-[radial-gradient(circle_at_50%_40%,rgba(200,169,106,0.35),rgba(20,20,20,0.9))] shadow-[0_0_28px_rgba(200,169,106,0.45),0_0_60px_rgba(200,169,106,0.15)] ring-2 ring-[rgba(200,169,106,0.45)]" : "bg-[radial-gradient(circle_at_50%_40%,rgba(200,169,106,0.5),rgba(255,252,245,0.95))] shadow-[0_0_24px_rgba(200,169,106,0.35),0_8px_24px_rgba(74,55,40,0.12)] ring-2 ring-[rgba(200,169,106,0.35)]"}`}
-            >
-              <Image
-                src={ASSETS.bell}
-                alt=""
-                width={52}
-                height={52}
-                className="pointer-events-none h-[46px] w-[46px] object-contain animate-bell-glow sm:h-[52px] sm:w-[52px]"
-              />
-            </button>
-          </div>
-
-          <NavItem
-            label="Fix"
-            active={false}
-            dark={dark}
-            mutedClass={t.navMuted}
-            activeClass={t.navActive}
-          >
-            <IconWrench className="h-[26px] w-[26px] shrink-0" />
-          </NavItem>
-          <NavItem
-            label="Alerts"
-            active={false}
-            dark={dark}
-            mutedClass={t.navMuted}
-            activeClass={t.navActive}
-            badge="2"
-          >
-            <IconBellNav className="h-[26px] w-[26px] shrink-0" />
-          </NavItem>
-        </div>
-      </nav>
-    </div>
-  );
-}
-
-function NavItem({
-  children,
-  label,
-  active,
-  dark,
-  mutedClass,
-  activeClass,
-  line,
-  badge,
-}: {
-  children: ReactNode;
-  label: string;
-  active?: boolean;
-  dark: boolean;
-  mutedClass: string;
-  activeClass: string;
-  line?: boolean;
-  badge?: string;
-}) {
-  return (
-    <button
-      type="button"
-      className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl py-1 transition-transform duration-300 hover:scale-[1.03] active:scale-[0.97] ${active ? activeClass : mutedClass}`}
-    >
-      {line ? (
-        <span
-          className={`mb-0.5 h-0.5 w-6 rounded-full ${dark ? "bg-gold" : "bg-brown"}`}
-          aria-hidden
-        />
-      ) : (
-        <span className="h-0.5 w-6" aria-hidden />
-      )}
-      <span className="relative">
-        {children}
-        {badge ? (
-          <span className="absolute -right-2 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold leading-none text-white">
-            {badge}
-          </span>
-        ) : null}
-      </span>
-      <span
-        className={`font-sans text-[9px] font-semibold uppercase tracking-wider ${dark && !active ? "opacity-80" : ""}`}
-      >
-        {label}
-      </span>
-    </button>
+      <BottomNav />
+    </GuestScaffold>
   );
 }
