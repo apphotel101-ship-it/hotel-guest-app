@@ -5,6 +5,11 @@ import { useEffect, useMemo, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
+import {
+  GUEST_CART_UPDATED_EVENT,
+  getCartItems,
+  updateCartItemQuantity,
+} from "../../lib/cart";
  
 type SearchItem = {
   item_id: number;
@@ -14,15 +19,6 @@ type SearchItem = {
   service_name: string;
   image_url?: string | null;
   is_available: boolean;
-};
-
-type CartItem = {
-  item_id: number;
-  item_name: string;
-  item_price: number;
-  service_id: number;
-  service_name: string;
-  quantity: number;
 };
 
  export default function SearchPage() {
@@ -38,6 +34,7 @@ type CartItem = {
   const [resultsVisible, setResultsVisible] = useState(false);
   const [activeSearchLabel, setActiveSearchLabel] = useState("");
   const [cartMessage, setCartMessage] = useState("");
+  const [cartQuantities, setCartQuantities] = useState<Record<number, number>>({});
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -97,35 +94,32 @@ type CartItem = {
     void loadSuggestions();
   }, [debouncedQuery]);
 
-  const addItemToCart = (item: SearchItem) => {
-    const storageKey = "guest_cart_items";
-    const existingRaw = localStorage.getItem(storageKey);
-    const currentItems: CartItem[] = existingRaw ? (JSON.parse(existingRaw) as CartItem[]) : [];
-    const matched = currentItems.find((cartItem) => cartItem.item_id === item.item_id);
+  useEffect(() => {
+    const syncCart = () => {
+      const qtyMap = getCartItems().reduce<Record<number, number>>((acc, item) => {
+        acc[item.item_id] = item.quantity;
+        return acc;
+      }, {});
+      setCartQuantities(qtyMap);
+    };
 
-    let nextItems: CartItem[];
-    if (matched) {
-      nextItems = currentItems.map((cartItem) =>
-        cartItem.item_id === item.item_id
-          ? { ...cartItem, quantity: cartItem.quantity + 1 }
-          : cartItem,
-      );
-    } else {
-      nextItems = [
-        ...currentItems,
-        {
-          item_id: item.item_id,
-          item_name: item.item_name,
-          item_price: item.item_price,
-          service_id: item.service_id,
-          service_name: item.service_name,
-          quantity: 1,
-        },
-      ];
-    }
+    syncCart();
+    window.addEventListener(GUEST_CART_UPDATED_EVENT, syncCart);
+    return () => window.removeEventListener(GUEST_CART_UPDATED_EVENT, syncCart);
+  }, []);
 
-    localStorage.setItem(storageKey, JSON.stringify(nextItems));
-    setCartMessage(`${item.item_name} added to cart`);
+  const handleUpdateCart = (item: SearchItem, delta: 1 | -1) => {
+    updateCartItemQuantity(
+      {
+        item_id: item.item_id,
+        item_name: item.item_name,
+        item_price: item.item_price,
+        service_id: item.service_id,
+        service_name: item.service_name,
+      },
+      delta,
+    );
+    setCartMessage(delta > 0 ? `${item.item_name} added to cart` : `${item.item_name} updated`);
     window.setTimeout(() => setCartMessage(""), 1500);
   };
 
@@ -294,18 +288,40 @@ type CartItem = {
                 <span className={`ml-2 shrink-0 text-xs font-semibold ${t.section}`}>
                   ₹{Number(item.item_price).toFixed(2)}
                 </span>
-                <button
-                  type="button"
-                  onMouseDown={() => addItemToCart(item)}
-                  disabled={!item.is_available}
-                  className={`ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold text-base font-bold text-white shadow-md shadow-gold/25 ${
-                    !item.is_available ? "cursor-not-allowed opacity-50" : "active:scale-95"
-                  }`}
-                  aria-label={`Add ${item.item_name} to cart`}
-                  title={`Add ${item.item_name} to cart`}
-                >
-                  +
-                </button>
+                {item.is_available ? (
+                  (cartQuantities[item.item_id] ?? 0) === 0 ? (
+                    <button
+                      type="button"
+                      onMouseDown={() => handleUpdateCart(item, 1)}
+                      className="ml-1 flex h-7 min-w-[48px] shrink-0 items-center justify-center rounded-full bg-gold px-2 text-[11px] font-semibold text-white shadow-md shadow-gold/25"
+                      aria-label={`Add ${item.item_name}`}
+                    >
+                      Add
+                    </button>
+                  ) : (
+                    <div className="ml-1 flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onMouseDown={() => handleUpdateCart(item, -1)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full border border-gold/60 text-sm font-bold text-gold"
+                        aria-label={`Decrease ${item.item_name}`}
+                      >
+                        -
+                      </button>
+                      <span className={`min-w-4 text-center text-xs font-semibold ${t.title}`}>
+                        {cartQuantities[item.item_id] ?? 0}
+                      </span>
+                      <button
+                        type="button"
+                        onMouseDown={() => handleUpdateCart(item, 1)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-gold text-sm font-bold text-white shadow-md shadow-gold/25 active:scale-95"
+                        aria-label={`Increase ${item.item_name}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  )
+                ) : null}
               </div>
             ))}
           </div>
@@ -338,18 +354,42 @@ type CartItem = {
                     ₹{Number(item.item_price).toFixed(2)}
                   </p>
                 </div>
-                <div className="mt-2 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => addItemToCart(item)}
-                    disabled={!item.is_available}
-                    className={`flex h-8 min-w-[82px] items-center justify-center rounded-full bg-gold px-3 text-xs font-semibold text-white shadow-md shadow-gold/25 ${
-                      !item.is_available ? "cursor-not-allowed opacity-50" : "active:scale-95"
-                    }`}
-                  >
-                    Add to cart
-                  </button>
-                </div>
+                {item.is_available ? (
+                  <div className="mt-2 flex justify-end">
+                    {(cartQuantities[item.item_id] ?? 0) === 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateCart(item, 1)}
+                        className="flex h-8 min-w-[56px] items-center justify-center rounded-full bg-gold px-3 text-xs font-semibold text-white shadow-md shadow-gold/25 transition active:scale-95"
+                        aria-label={`Add ${item.item_name}`}
+                      >
+                        Add
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCart(item, -1)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-gold/60 text-base font-bold text-gold transition"
+                          aria-label={`Decrease ${item.item_name}`}
+                        >
+                          -
+                        </button>
+                        <span className={`min-w-5 text-center text-sm font-bold ${t.title}`}>
+                          {cartQuantities[item.item_id] ?? 0}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCart(item, 1)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-gold text-base font-bold text-white shadow-md shadow-gold/25 transition active:scale-95"
+                          aria-label={`Increase ${item.item_name}`}
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

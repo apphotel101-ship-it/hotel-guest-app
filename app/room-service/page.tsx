@@ -5,19 +5,11 @@ import { useEffect, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
- 
- function AddButton() {
-   return (
-     <Link
-       href="/cart"
-       className="flex h-8 w-8 items-center justify-center rounded-full bg-gold text-white shadow-md shadow-gold/25 transition active:scale-95"
-       aria-label="Add to cart (demo)"
-       title="Add to cart (demo)"
-     >
-       +
-     </Link>
-   );
- }
+import {
+  GUEST_CART_UPDATED_EVENT,
+  getCartItems,
+  updateCartItemQuantity,
+} from "../../lib/cart";
  
  export default function RoomServicePage() {
    const { dark } = useGuestTheme();
@@ -32,6 +24,8 @@ import { useEffect, useState } from "react";
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cartMessage, setCartMessage] = useState("");
+  const [cartQuantities, setCartQuantities] = useState<Record<number, number>>({});
 
   useEffect(() => {
     const fetchRoomServiceItems = async () => {
@@ -61,6 +55,20 @@ import { useEffect, useState } from "react";
 
     fetchRoomServiceItems();
   }, []);
+
+  useEffect(() => {
+    const syncCart = () => {
+      const qtyMap = getCartItems().reduce<Record<number, number>>((acc, item) => {
+        acc[item.item_id] = item.quantity;
+        return acc;
+      }, {});
+      setCartQuantities(qtyMap);
+    };
+
+    syncCart();
+    window.addEventListener(GUEST_CART_UPDATED_EVENT, syncCart);
+    return () => window.removeEventListener(GUEST_CART_UPDATED_EVENT, syncCart);
+  }, []);
  
    const t = dark
      ? {
@@ -81,6 +89,21 @@ import { useEffect, useState } from "react";
          banner:
            "border border-[rgba(200,169,106,0.28)] bg-[rgba(255,255,255,0.52)] shadow-[0_10px_32px_rgba(0,0,0,0.07)]",
        };
+
+  const handleUpdateCart = (item: (typeof items)[number], delta: 1 | -1) => {
+    updateCartItemQuantity(
+      {
+      item_id: item.item_id,
+      item_name: item.item_name,
+      item_price: item.item_price,
+      service_id: 3,
+      service_name: "Room Service",
+      },
+      delta,
+    );
+    setCartMessage(delta > 0 ? `${item.item_name} added to cart` : `${item.item_name} updated`);
+    window.setTimeout(() => setCartMessage(""), 1500);
+  };
  
    return (
      <GuestScaffold>
@@ -119,6 +142,7 @@ import { useEffect, useState } from "react";
        </h2>
  
        <div className={`overflow-hidden rounded-[22px] ${t.glass}`}>
+        {cartMessage ? <p className="px-4 py-3 text-sm text-emerald-500">{cartMessage}</p> : null}
         {loading ? <p className={`px-4 py-4 text-sm ${t.muted}`}>Loading items...</p> : null}
         {error ? <p className="px-4 py-4 text-sm text-red-500">{error}</p> : null}
         {!loading && !error && items.length === 0 ? (
@@ -160,7 +184,42 @@ import { useEffect, useState } from "react";
                 </p>
                </div>
              </div>
-            {row.is_available ? <AddButton /> : <span className={`text-xs ${t.muted}`}>N/A</span>}
+            {row.is_available ? (
+              (cartQuantities[row.item_id] ?? 0) === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateCart(row, 1)}
+                  className="flex h-8 min-w-[56px] shrink-0 items-center justify-center rounded-full bg-gold px-3 text-xs font-semibold text-white shadow-md shadow-gold/25 transition active:scale-95"
+                  aria-label={`Add ${row.item_name}`}
+                >
+                  Add
+                </button>
+              ) : (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCart(row, -1)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-gold/60 text-base font-bold text-gold transition"
+                    aria-label={`Decrease ${row.item_name}`}
+                  >
+                    -
+                  </button>
+                  <span className={`min-w-5 text-center text-sm font-bold ${t.title}`}>
+                    {cartQuantities[row.item_id] ?? 0}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCart(row, 1)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-gold text-base font-bold text-white shadow-md shadow-gold/25 transition active:scale-95"
+                    aria-label={`Increase ${row.item_name}`}
+                  >
+                    +
+                  </button>
+                </div>
+              )
+            ) : (
+              <span className={`text-xs ${t.muted}`}>N/A</span>
+            )}
            </div>
          ))}
        </div>

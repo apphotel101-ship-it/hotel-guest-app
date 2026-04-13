@@ -2,6 +2,7 @@
  
  import type { ReactNode } from "react";
 import { useGuestTheme } from "./GuestThemeProvider";
+import { FloatingCartButton } from "./FloatingCartButton";
  
  const ASSETS = {
    bgLight: "/images/bg-light.png",
@@ -35,6 +36,7 @@ import { useGuestTheme } from "./GuestThemeProvider";
        >
          {children}
        </div>
+      <FloatingCartButton />
      </div>
    );
  }

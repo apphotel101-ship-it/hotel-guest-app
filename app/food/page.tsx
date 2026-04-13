@@ -5,6 +5,11 @@ import { useEffect, useState } from "react";
  import { BottomNav } from "../../components/BottomNav";
  import { GuestScaffold } from "../../components/GuestScaffold";
  import { useGuestTheme } from "../../components/GuestThemeProvider";
+import {
+  GUEST_CART_UPDATED_EVENT,
+  getCartItems,
+  updateCartItemQuantity,
+} from "../../lib/cart";
  
 type ServiceItem = {
   item_id: number;
@@ -19,6 +24,8 @@ type ServiceItem = {
   const [items, setItems] = useState<ServiceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cartMessage, setCartMessage] = useState("");
+  const [cartQuantities, setCartQuantities] = useState<Record<number, number>>({});
 
   useEffect(() => {
     const fetchFoodItems = async () => {
@@ -48,6 +55,21 @@ type ServiceItem = {
 
     fetchFoodItems();
   }, []);
+
+  useEffect(() => {
+    const syncCart = () => {
+      const items = getCartItems();
+      const qtyMap = items.reduce<Record<number, number>>((acc, item) => {
+        acc[item.item_id] = item.quantity;
+        return acc;
+      }, {});
+      setCartQuantities(qtyMap);
+    };
+
+    syncCart();
+    window.addEventListener(GUEST_CART_UPDATED_EVENT, syncCart);
+    return () => window.removeEventListener(GUEST_CART_UPDATED_EVENT, syncCart);
+  }, []);
  
    const t = dark
      ? {
@@ -76,6 +98,21 @@ type ServiceItem = {
          price: "text-[#9a7b4f]",
          pill: "bg-[rgba(74,55,40,0.06)] text-brown-muted border border-brown/15",
        };
+
+  const handleUpdateCart = (item: ServiceItem, delta: 1 | -1) => {
+    updateCartItemQuantity(
+      {
+      item_id: item.item_id,
+      item_name: item.item_name,
+      item_price: item.item_price,
+      service_id: 1,
+      service_name: "Food & Dining",
+      },
+      delta,
+    );
+    setCartMessage(delta > 0 ? `${item.item_name} added to cart` : `${item.item_name} updated`);
+    window.setTimeout(() => setCartMessage(""), 1500);
+  };
  
    return (
      <GuestScaffold>
@@ -102,6 +139,7 @@ type ServiceItem = {
        </h2>
  
        <div className="space-y-3">
+        {cartMessage ? <p className="text-sm text-emerald-500">{cartMessage}</p> : null}
         {loading ? <p className={`text-sm ${t.rowMuted}`}>Loading food items...</p> : null}
         {error ? <p className="text-sm text-red-500">{error}</p> : null}
         {!loading && !error && items.length === 0 ? (
@@ -142,16 +180,42 @@ type ServiceItem = {
                   ₹{Number(item.item_price).toFixed(2)}
                 </p>
                </div>
-               <Link
-                 href="/cart"
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold text-white shadow-md shadow-gold/25 transition active:scale-95 ${
-                  !item.is_available ? "pointer-events-none opacity-50" : ""
-                }`}
-                 aria-label="Add to cart (demo)"
-                 title="Add to cart (demo)"
-               >
-                 +
-               </Link>
+              {item.is_available ? (
+                (cartQuantities[item.item_id] ?? 0) === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateCart(item, 1)}
+                    className="ml-1 flex h-8 min-w-[56px] shrink-0 items-center justify-center rounded-full bg-gold px-3 text-xs font-semibold text-white shadow-md shadow-gold/25 transition active:scale-95"
+                    aria-label={`Add ${item.item_name}`}
+                  >
+                    Add
+                  </button>
+                ) : (
+                  <div className="ml-1 flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateCart(item, -1)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-gold/60 text-base font-bold text-gold transition"
+                      aria-label={`Decrease ${item.item_name}`}
+                    >
+                      -
+                    </button>
+                    <span className={`min-w-5 text-center text-sm font-bold ${t.rowText}`}>
+                      {cartQuantities[item.item_id] ?? 0}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateCart(item, 1)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-gold text-base font-bold text-white shadow-md shadow-gold/25 transition active:scale-95"
+                      aria-label={`Increase ${item.item_name}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                )
+              ) : (
+                <span className={`text-xs ${t.rowMuted}`}>N/A</span>
+              )}
              </div>
            </div>
          ))}
